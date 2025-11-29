@@ -13,11 +13,16 @@ async function renderTimePng () {
   const fontSize = 64
   const bg = '#141414'
   const fg = '#eeeeee'
+  const fontUrl = 'https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@700'
 
   const svg = `
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+      <style>
+        @import url('${fontUrl}');
+        text { font-family: 'Roboto Mono', monospace; font-weight: 700; }
+      </style>
       <rect width="100%" height="100%" fill="${bg}"/>
-      <text x="50%" y="50%" font-family="monospace" font-size="${fontSize}" fill="${fg}"
+      <text x="50%" y="50%" font-size="${fontSize}" fill="${fg}"
             dominant-baseline="central" text-anchor="middle">${text}</text>
     </svg>`
 
