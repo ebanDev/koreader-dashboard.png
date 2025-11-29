@@ -99,6 +99,7 @@ export async function renderTimePng () {
     interDataUrl = `data:font/woff2;base64,${interBase64}`
   } catch (error) {
     console.error('Font fetch error:', error)
+    // Fallback to system fonts if font fetching fails
   }
 
   // Grayscale colors for e-ink display
@@ -108,14 +109,10 @@ export async function renderTimePng () {
 
   const svg = `
     <svg width="${height}" height="${width}" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        ${robotoMonoDataUrl ? `<style>@font-face { font-family: 'Roboto Mono'; src: url('${robotoMonoDataUrl}') format('woff2'); font-weight: 700; }</style>` : ''}
-        ${interDataUrl ? `<style>@font-face { font-family: 'Inter'; src: url('${interDataUrl}') format('woff2'); font-weight: 600; font-weight: 700; }</style>` : ''}
-      </defs>
       <style>
-        .time-text { font-family: 'Roboto Mono', monospace; font-weight: 700; }
-        .weather-text { font-family: 'Inter', sans-serif; font-weight: 600; }
-        .location-text { font-family: 'Inter', sans-serif; font-weight: 700; }
+        .time-text { font-family: ${robotoMonoDataUrl ? `'Roboto Mono', ` : ''}monospace; font-weight: 700; }
+        .weather-text { font-family: ${interDataUrl ? `'Inter', ` : ''}sans-serif; font-weight: 600; }
+        .location-text { font-family: ${interDataUrl ? `'Inter', ` : ''}sans-serif; font-weight: 700; }
       </style>
       
       <!-- Background -->
