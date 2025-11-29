@@ -31,7 +31,6 @@ app.get('/dashboard.png', async () => {
   return new Response(buffer, { headers: { 'Content-Type': 'image/png' } })
 })
 
-const server = app.listen(1312)
 console.log('Listening on http://localhost:1312/dashboard.png (PNG with HH:SS)')
 
-export default server
+export default app
