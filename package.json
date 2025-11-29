@@ -1,0 +1,13 @@
+{
+  "name": "mini-bun-elysia-dashboard",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "bun index.js"
+  },
+  "dependencies": {
+    "elysia": "^1.4.16",
+    "pngjs": "^7.0.0",
+    "sharp": "^0.34.5"
+  }
+}
