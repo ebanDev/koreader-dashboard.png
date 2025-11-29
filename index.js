@@ -78,6 +78,41 @@ export async function renderTimePng () {
   const col1Height = Math.floor(height / 3)
   const col2Height = height - col1Height
 
+  // Fetch fonts for Vercel server rendering
+  let robotoMonoDataUrl = ''
+  let interDataUrl = ''
+  try {
+    const [robotoResponse, interResponse] = await Promise.all([
+      fetch('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@700&text=0123456789:'),
+      fetch('https://fonts.googleapis.com/css2?family=Inter:wght@600;700&text=0123456789°C')
+    ])
+    
+    const [robotoCss, interCss] = await Promise.all([
+      robotoResponse.text(),
+      interResponse.text()
+    ])
+    
+    // Extract font URLs from CSS and fetch font files
+    const robotoFontUrl = robotoCss.match(/url\(([^)]+)\)/)?.[1]
+    const interFontUrl = interCss.match(/url\(([^)]+)\)/)?.[1]
+    
+    if (robotoFontUrl) {
+      const robotoFontResponse = await fetch(robotoFontUrl)
+      const robotoFontBuffer = await robotoFontResponse.arrayBuffer()
+      const robotoBase64 = Buffer.from(robotoFontBuffer).toString('base64')
+      robotoMonoDataUrl = `data:font/woff2;base64,${robotoBase64}`
+    }
+    
+    if (interFontUrl) {
+      const interFontResponse = await fetch(interFontUrl)
+      const interFontBuffer = await interFontResponse.arrayBuffer()
+      const interBase64 = Buffer.from(interFontBuffer).toString('base64')
+      interDataUrl = `data:font/woff2;base64,${interBase64}`
+    }
+  } catch (error) {
+    console.error('Font fetch error:', error)
+  }
+
   // Grayscale colors for e-ink display
   const bg = '#ffffff' // White background
   const fg = '#000000' // Black text
@@ -85,6 +120,10 @@ export async function renderTimePng () {
 
   const svg = `
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        ${robotoMonoDataUrl ? `<style>@font-face { font-family: 'Roboto Mono'; src: url('${robotoMonoDataUrl}') format('woff2'); font-weight: 700; }</style>` : ''}
+        ${interDataUrl ? `<style>@font-face { font-family: 'Inter'; src: url('${interDataUrl}') format('woff2'); font-weight: 600; font-weight: 700; }</style>` : ''}
+      </defs>
       <style>
         .time-text { font-family: 'Roboto Mono', monospace; font-weight: 700; }
         .weather-text { font-family: 'Inter', sans-serif; font-weight: 600; }
