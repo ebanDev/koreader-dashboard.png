@@ -78,37 +78,25 @@ export async function renderTimePng () {
   const col1Height = Math.floor(height / 3)
   const col2Height = height - col1Height
 
-  // Fetch fonts for Vercel server rendering
+  // Fetch fonts for Vercel server rendering - embed as base64 data
   let robotoMonoDataUrl = ''
   let interDataUrl = ''
   try {
-    const [robotoResponse, interResponse] = await Promise.all([
-      fetch('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@700&text=0123456789:'),
-      fetch('https://fonts.googleapis.com/css2?family=Inter:wght@600;700&text=0123456789°C')
-    ])
+    // Fetch Roboto Mono font directly from Google Fonts
+    const robotoResponse = await fetch('https://fonts.gstatic.com/s/robotomono/v22/LRIjDQ7iM2JL0W_79Q8aFXeJQw.woff2', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Sharp/FontLoader)' }
+    })
+    const robotoBuffer = await robotoResponse.arrayBuffer()
+    const robotoBase64 = Buffer.from(robotoBuffer).toString('base64')
+    robotoMonoDataUrl = `data:font/woff2;base64,${robotoBase64}`
     
-    const [robotoCss, interCss] = await Promise.all([
-      robotoResponse.text(),
-      interResponse.text()
-    ])
-    
-    // Extract font URLs from CSS and fetch font files
-    const robotoFontUrl = robotoCss.match(/url\(([^)]+)\)/)?.[1]
-    const interFontUrl = interCss.match(/url\(([^)]+)\)/)?.[1]
-    
-    if (robotoFontUrl) {
-      const robotoFontResponse = await fetch(robotoFontUrl)
-      const robotoFontBuffer = await robotoFontResponse.arrayBuffer()
-      const robotoBase64 = Buffer.from(robotoFontBuffer).toString('base64')
-      robotoMonoDataUrl = `data:font/woff2;base64,${robotoBase64}`
-    }
-    
-    if (interFontUrl) {
-      const interFontResponse = await fetch(interFontUrl)
-      const interFontBuffer = await interFontResponse.arrayBuffer()
-      const interBase64 = Buffer.from(interFontBuffer).toString('base64')
-      interDataUrl = `data:font/woff2;base64,${interBase64}`
-    }
+    // Fetch Inter font directly from Google Fonts
+    const interResponse = await fetch('https://fonts.gstatic.com/s/inter/v14/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Sharp/FontLoader)' }
+    })
+    const interBuffer = await interResponse.arrayBuffer()
+    const interBase64 = Buffer.from(interBuffer).toString('base64')
+    interDataUrl = `data:font/woff2;base64,${interBase64}`
   } catch (error) {
     console.error('Font fetch error:', error)
   }
@@ -119,7 +107,7 @@ export async function renderTimePng () {
   const accent = '#808080' // Gray accent
 
   const svg = `
-    <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+    <svg width="${height}" height="${width}" xmlns="http://www.w3.org/2000/svg">
       <defs>
         ${robotoMonoDataUrl ? `<style>@font-face { font-family: 'Roboto Mono'; src: url('${robotoMonoDataUrl}') format('woff2'); font-weight: 700; }</style>` : ''}
         ${interDataUrl ? `<style>@font-face { font-family: 'Inter'; src: url('${interDataUrl}') format('woff2'); font-weight: 600; font-weight: 700; }</style>` : ''}
@@ -133,37 +121,40 @@ export async function renderTimePng () {
       <!-- Background -->
       <rect width="100%" height="100%" fill="${bg}"/>
       
-      <!-- Column 1: Time and Weather (top 1/3) -->
-      <g>
-        <!-- Col1 background -->
-        <rect x="0" y="0" width="${col1Width}" height="${col1Height}" fill="#f0f0f0"/>
+      <!-- Rotate entire content 90 degrees counter-clockwise -->
+      <g transform="translate(0, ${width}) rotate(-90)">
+        <!-- Column 1: Time and Weather (top 1/3) -->
+        <g>
+          <!-- Col1 background -->
+          <rect x="0" y="0" width="${col1Width}" height="${col1Height}" fill="#f0f0f0"/>
+          
+          <!-- Time -->
+          <text x="40" y="60" class="time-text" font-size="48" fill="${fg}">${timeText}</text>
+          
+          <!-- Weather section -->
+          <image href="${weatherIconDataUrl}" x="${col1Width - 80}" y="0" width="60" height="60" />
+          
+          <!-- Temperature and Location -->
+          <text x="40" y="110" class="weather-text" font-size="24" fill="${fg}">${temperature} • Bordeaux, France</text>
+          
+          <!-- Accent line -->
+          <rect x="0" y="${col1Height - 4}" width="${col1Width}" height="4" fill="${accent}"/>
+        </g>
         
-        <!-- Time -->
-        <text x="40" y="60" class="time-text" font-size="48" fill="${fg}">${timeText}</text>
+        <!-- Column 2: Empty black square (bottom 2/3) -->
+        <g>
+          <!-- Col2 background -->
+          <rect x="${col1Width}" y="0" width="${col2Width}" height="${height}" fill="#000000"/>
+          
+          <!-- Centered empty square indication -->
+          <text x="${col1Width + col2Width / 2}" y="${height / 2}" class="weather-text" font-size="20" fill="#ffffff" text-anchor="middle" dominant-baseline="central">
+            Empty section
+          </text>
+        </g>
         
-        <!-- Weather section -->
-        <image href="${weatherIconDataUrl}" x="${col1Width - 80}" y="0" width="60" height="60" />
-        
-        <!-- Temperature and Location -->
-        <text x="40" y="110" class="weather-text" font-size="24" fill="${fg}">${temperature} • Bordeaux, France</text>
-        
-        <!-- Accent line -->
-        <rect x="0" y="${col1Height - 4}" width="${col1Width}" height="4" fill="${accent}"/>
+        <!-- Column separator -->
+        <line x1="${col1Width}" y1="0" x2="${col1Width}" y2="${height}" stroke="#000000" stroke-width="2"/>
       </g>
-      
-      <!-- Column 2: Empty black square (bottom 2/3) -->
-      <g>
-        <!-- Col2 background -->
-        <rect x="${col1Width}" y="0" width="${col2Width}" height="${height}" fill="#000000"/>
-        
-        <!-- Centered empty square indication -->
-        <text x="${col1Width + col2Width / 2}" y="${height / 2}" class="weather-text" font-size="20" fill="#ffffff" text-anchor="middle" dominant-baseline="central">
-          Empty section
-        </text>
-      </g>
-      
-      <!-- Column separator -->
-      <line x1="${col1Width}" y1="0" x2="${col1Width}" y2="${height}" stroke="#000000" stroke-width="2"/>
     </svg>`
 
   return await sharp(Buffer.from(svg)).png().toBuffer()
@@ -175,7 +166,5 @@ app.get('/dashboard.png', async () => {
   const buffer = await renderTimePng()
   return new Response(buffer, { headers: { 'Content-Type': 'image/png' } })
 })
-
-console.log('Listening on http://localhost:1312/dashboard.png (PNG with HH:SS)')
 
 export default app
