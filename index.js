@@ -160,11 +160,12 @@ const fetchUpcomingCalendarEvents = async () => {
 }
 
 export async function renderTimePng () {
-  // Use local time (no API)
   const now = new Date()
-  const hh = String(now.getHours()).padStart(2, '0')
-  const mm = String(now.getMinutes()).padStart(2, '0')
-  const dateBelowClock = `${formatWeekdayShort(now)} ${String(now.getDate()).padStart(2, '0')} ${formatMonthShort(now)}`
+  const parisTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Paris' }))
+  console.log('Paris time:', parisTime.toString())
+  const hh = String(parisTime.getHours()).padStart(2, '0')
+  const mm = String(parisTime.getMinutes()).padStart(2, '0')
+  const dateBelowClock = `${formatWeekdayShort(parisTime)} ${String(parisTime.getDate()).padStart(2, '0')} ${formatMonthShort(parisTime)}`
   const timeText = `${hh}:${mm}`
   
   // Fetch current temperature and weather code from Open-Meteo API (Bordeaux, France coordinates)
