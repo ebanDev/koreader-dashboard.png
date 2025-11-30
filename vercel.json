@@ -1,3 +1,7 @@
 {
-  "bunVersion": "1.x"
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "bunVersion": "1.x",
+  "env": {
+    "FONTCONFIG_PATH": "/var/task/fonts"
+  }
 }

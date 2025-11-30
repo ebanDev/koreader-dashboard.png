@@ -1,5 +1,9 @@
 import { Elysia } from 'elysia'
 import sharp from 'sharp'
+import path from 'path';
+
+path.resolve(process.cwd(), 'fonts', 'fonts.conf');
+path.resolve(process.cwd(), 'fonts', 'Sen.ttf');
 
 export async function renderTimePng () {
   // Use local time (no API)
@@ -78,30 +82,6 @@ export async function renderTimePng () {
   const col1Height = Math.floor(height / 3)
   const col2Height = height - col1Height
 
-  // Fetch fonts for Vercel server rendering - embed as base64 data
-  let robotoMonoDataUrl = ''
-  let interDataUrl = ''
-  try {
-    // Fetch Roboto Mono font directly from Google Fonts
-    const robotoResponse = await fetch('https://fonts.gstatic.com/s/robotomono/v22/LRIjDQ7iM2JL0W_79Q8aFXeJQw.woff2', {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Sharp/FontLoader)' }
-    })
-    const robotoBuffer = await robotoResponse.arrayBuffer()
-    const robotoBase64 = Buffer.from(robotoBuffer).toString('base64')
-    robotoMonoDataUrl = `data:font/woff2;base64,${robotoBase64}`
-    
-    // Fetch Inter font directly from Google Fonts
-    const interResponse = await fetch('https://fonts.gstatic.com/s/inter/v14/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiA.woff2', {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Sharp/FontLoader)' }
-    })
-    const interBuffer = await interResponse.arrayBuffer()
-    const interBase64 = Buffer.from(interBuffer).toString('base64')
-    interDataUrl = `data:font/woff2;base64,${interBase64}`
-  } catch (error) {
-    console.error('Font fetch error:', error)
-    // Fallback to system fonts if font fetching fails
-  }
-
   // Grayscale colors for e-ink display
   const bg = '#ffffff' // White background
   const fg = '#000000' // Black text
@@ -110,9 +90,9 @@ export async function renderTimePng () {
   const svg = `
     <svg width="${height}" height="${width}" xmlns="http://www.w3.org/2000/svg">
       <style>
-        .time-text { font-family: ${robotoMonoDataUrl ? `'Roboto Mono', ` : ''}monospace; font-weight: 700; }
-        .weather-text { font-family: ${interDataUrl ? `'Inter', ` : ''}sans-serif; font-weight: 600; }
-        .location-text { font-family: ${interDataUrl ? `'Inter', ` : ''}sans-serif; font-weight: 700; }
+        .time-text { font-family: Sen; font-weight: 700; }
+        .weather-text { font-family: Sen; font-weight: 600; }
+        .location-text { font-family: Sen; font-weight: 700; }
       </style>
       
       <!-- Background -->
