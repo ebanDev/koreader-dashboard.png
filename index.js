@@ -67,9 +67,22 @@ const parseIcsDate = (value) => {
   const match = value.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?(Z)?$/)
   if (match) {
     const [, y, m, d, hh, mm, ss = '00', z] = match
-    const iso = `${y}-${m}-${d}T${hh}:${mm}:${ss}${z ? 'Z' : ''}`
-    const date = new Date(iso)
-    return { date, allDay: false }
+    if (z) {
+      // UTC time (ends with Z)
+      const iso = `${y}-${m}-${d}T${hh}:${mm}:${ss}Z`
+      const date = new Date(iso)
+      return { date, allDay: false }
+    } else {
+      const year = parseInt(y, 10)
+      const month = parseInt(m, 10) - 1 // JS months are 0-indexed
+      const day = parseInt(d, 10)
+      const hour = parseInt(hh, 10)
+      const minute = parseInt(mm, 10)
+      const second = parseInt(ss, 10)
+      
+      const date = new Date(year, month, day, hour, minute, second)
+      return { date, allDay: false }
+    }
   }
 
   return null
