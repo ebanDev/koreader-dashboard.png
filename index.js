@@ -319,7 +319,7 @@ export async function renderTimePng () {
 
   // Left column card sizes
   const timeCardHeight = 170
-  const weatherCardHeight = 110
+  const weatherCardHeight = 80
   const leftArtCardHeight = leftHeight - timeCardHeight - weatherCardHeight - gutter * 2
 
   // Right column card sizes
@@ -378,16 +378,16 @@ export async function renderTimePng () {
         <g>
           <!-- Time card -->
           <rect x="${leftX}" y="${leftY}" width="${leftWidth}" height="${timeCardHeight}" rx="${radius}" ry="${radius}" fill="${cardFill}" stroke="${stroke}" stroke-width="1.5" shape-rendering="crispEdges"/>
-          <text x="${timeX}" y="${leftY + timeCardHeight / 2 - 10}" class="pixel" font-size="60" fill="${fg}" text-anchor="middle" dominant-baseline="middle">${timeText}</text>
-          <text x="${timeX}" y="${leftY + timeCardHeight / 2 + 30}" class="pixel-small" font-size="18" fill="${fg}" text-anchor="middle" dominant-baseline="middle">${dateBelowClock}</text>
+          <text x="${timeX}" y="${leftY + timeCardHeight / 2 - 10}" class="pixel" font-size="72" fill="${fg}" text-anchor="middle" dominant-baseline="middle">${timeText}</text>
+          <text x="${timeX}" y="${leftY + timeCardHeight / 2 + 40}" class="pixel-small" font-size="24" fill="${fg}" text-anchor="middle" dominant-baseline="middle">${dateBelowClock}</text>
           
           <!-- Weather card -->
           <g transform="translate(${leftX}, ${leftY + timeCardHeight + gutter})">
             <rect x="0" y="0" width="${leftWidth}" height="${weatherCardHeight}" rx="${radius}" ry="${radius}" fill="${cardFill}" stroke="${stroke}" stroke-width="1.5" shape-rendering="crispEdges"/>
             <g transform="translate(${padding}, ${weatherCardHeight / 2})">
               <image href="${weatherIconDataUrl}" x="0" y="-${weatherIconSize / 2}" width="${weatherIconSize}" height="${weatherIconSize}" />
-              <text x="${weatherIconSize + weatherGap}" y="-6" class="pixel-small" font-size="17" fill="${fg}" dominant-baseline="middle">TEMP // ${weatherData.temperature}</text>
-              <text x="${weatherIconSize + weatherGap}" y="16" class="pixel-small" font-size="15" fill="${fg}">PRECIP // ${weatherData.precipitationProbability}% / ${weatherData.precipitationSum}mm</text>
+              <text x="${weatherIconSize + weatherGap}" y="-6" class="pixel-small" font-size="19" fill="${fg}" dominant-baseline="middle">TEMP // ${weatherData.temperature}</text>
+              <text x="${weatherIconSize + weatherGap}" y="16" class="pixel-small" font-size="17" fill="${fg}">PRECIP // ${weatherData.precipitationProbability}% / ${weatherData.precipitationSum}mm</text>
             </g>
           </g>
 
@@ -406,8 +406,8 @@ export async function renderTimePng () {
             const groupY = agendaContentStartY + agendaHeaderHeight + agendaHeaderGap + idx * agendaEntrySpacing
             return `<g transform="translate(${rightX + padding}, ${groupY})">
               <image href="${calendarIconDataUrl}" x="0" y="-10" width="18" height="18" />
-              <text x="24" y="0" class="pixel-small" font-size="17" fill="${fg}" dominant-baseline="middle">${item.timeLabel}</text>
-              <text x="0" y="26" class="pixel-small" font-size="15" fill="${fg}">${item.title}</text>
+              <text x="24" y="0" class="pixel-small" font-size="19" fill="${fg}" dominant-baseline="middle">${item.timeLabel}</text>
+              <text x="0" y="26" class="pixel-small" font-size="17" fill="${fg}">${item.title}</text>
             </g>`
           }).join('')}
 
@@ -425,7 +425,7 @@ export async function renderTimePng () {
               const icon = busIconData[item.iconKey] || ''
               return `<g transform="translate(${padding}, ${lineY})">
                 <image href="${icon}" x="0" y="-11" width="20" height="20" />
-                <text x="26" y="0" class="pixel-small" font-size="16" fill="${fg}" dominant-baseline="middle">${item.route} // ${item.eta}</text>
+                <text x="26" y="0" class="pixel-small" font-size="18" fill="${fg}" dominant-baseline="middle">${item.route} // ${item.eta}</text>
               </g>`
             }).join('')}
           </g>
