@@ -122,7 +122,7 @@ const fetchUpcomingCalendarEvents = async () => {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 10000)
     try {
-      const response = await fetch(calendarUrl, {
+      const response = await fetch(calendarUrl, { 
         signal: controller.signal,
         headers: { 'User-Agent': 'koreader-dashboard/1.0' }
       })
@@ -159,13 +159,7 @@ const fetchUpcomingCalendarEvents = async () => {
   })
 }
 
-export async function renderTimePng() {
-  const bg = '#000'
-  const fg = '#fff'
-  const stroke = '#666'
-  const cardFill = '#333'
-  const radius = 18
-
+export async function renderTimePng () {
   const now = new Date()
   const parisTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Paris' }))
   console.log('Paris time:', parisTime.toString())
@@ -173,7 +167,7 @@ export async function renderTimePng() {
   const mm = String(parisTime.getMinutes()).padStart(2, '0')
   const dateBelowClock = `${formatWeekdayShort(parisTime)} ${String(parisTime.getDate()).padStart(2, '0')} ${formatMonthShort(parisTime)}`
   const timeText = `${hh}:${mm}`
-
+  
   // Fetch current temperature and weather code from Open-Meteo API (Bordeaux, France coordinates)
   let weatherData = {
     temperature: 'ERR',
@@ -184,8 +178,8 @@ export async function renderTimePng() {
   try {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 10000) // Increased timeout to 10 seconds
-
-    const response = await fetch('https://api.open-meteo.com/v1/forecast?latitude=44.8404&longitude=-0.5805&daily=weather_code,precipitation_sum,precipitation_probability_max,temperature_2m_mean&timezone=Europe%2FBerlin&forecast_days=1', {
+    
+    const response = await fetch('https://api.open-meteo.com/v1/forecast?latitude=44.8404&longitude=-0.5805&daily=weather_code,precipitation_sum,precipitation_probability_max,temperature_2m_mean&timezone=Europe%2FBerlin&forecast_days=1', { 
       signal: controller.signal,
       headers: {
         'User-Agent': 'koreader-dashboard/1.0'
@@ -210,28 +204,28 @@ export async function renderTimePng() {
   // Select weather icon based on weather code and fetch as data URL
   let weatherIconDataUrl = ''
   if (weatherData.weatherCode !== null) {
-    let iconUrl = 'https://api.iconify.design/ph:sun-bold.svg?color=%23' + fg.slice(1)
+    let iconUrl = 'https://api.iconify.design/ph:sun-bold.svg'
     if (weatherData.weatherCode === 0) {
-      iconUrl = 'https://api.iconify.design/ph:sun-bold.svg?color=%23' + fg.slice(1)
+      iconUrl = 'https://api.iconify.design/ph:sun-bold.svg'
     } else if ([1, 2, 3].includes(weatherData.weatherCode)) {
-      iconUrl = 'https://api.iconify.design/ph:cloud-sun-bold.svg?color=%23' + fg.slice(1)
+      iconUrl = 'https://api.iconify.design/ph:cloud-sun-bold.svg'
     } else if ([45, 48].includes(weatherData.weatherCode)) {
-      iconUrl = 'https://api.iconify.design/ph:cloud-fog-bold.svg?color=%23' + fg.slice(1)
+      iconUrl = 'https://api.iconify.design/ph:cloud-fog-bold.svg'
     } else if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(weatherData.weatherCode)) {
-      iconUrl = 'https://api.iconify.design/ph:cloud-rain-bold.svg?color=%23' + fg.slice(1)
+      iconUrl = 'https://api.iconify.design/ph:cloud-rain-bold.svg'
     } else if ([56, 57, 66, 67].includes(weatherData.weatherCode)) {
-      iconUrl = 'https://api.iconify.design/ph:cloud-drizzle-bold.svg?color=%23' + fg.slice(1)
+      iconUrl = 'https://api.iconify.design/ph:cloud-drizzle-bold.svg'
     } else if ([71, 73, 75, 77, 85, 86].includes(weatherData.weatherCode)) {
-      iconUrl = 'https://api.iconify.design/ph:cloud-snow-bold.svg?color=%23' + fg.slice(1)
+      iconUrl = 'https://api.iconify.design/ph:cloud-snow-bold.svg'
     } else if ([95, 96, 99].includes(weatherData.weatherCode)) {
-      iconUrl = 'https://api.iconify.design/ph:cloud-lightning-bold.svg?color=%23' + fg.slice(1)
+      iconUrl = 'https://api.iconify.design/ph:cloud-lightning-bold.svg'
     }
-
+    
     try {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 10000)
-
-      const response = await fetch(iconUrl, {
+      
+      const response = await fetch(iconUrl, { 
         signal: controller.signal,
         headers: {
           'User-Agent': 'koreader-dashboard/1.0'
@@ -250,7 +244,7 @@ export async function renderTimePng() {
   try {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 10000)
-    const response = await fetch('https://api.iconify.design/ph:calendar-blank-bold.svg?color=%23' + fg.slice(1), {
+    const response = await fetch('https://api.iconify.design/ph:calendar-blank-bold.svg', { 
       signal: controller.signal,
       headers: {
         'User-Agent': 'koreader-dashboard/1.0'
@@ -280,8 +274,8 @@ export async function renderTimePng() {
 
   // Bus/tram icons
   const busIconUrls = {
-    bus: 'https://api.iconify.design/ph:bus-bold.svg?color=%23' + fg.slice(1),
-    tram: 'https://api.iconify.design/ph:tram-bold.svg?color=%23' + fg.slice(1)
+    bus: 'https://api.iconify.design/ph:bus-bold.svg',
+    tram: 'https://api.iconify.design/ph:tram-bold.svg'
   }
   const busIconData = {}
   const busIconKeys = [...new Set(busItems.map((item) => item.iconKey))]
@@ -289,7 +283,7 @@ export async function renderTimePng() {
     try {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 10000)
-      const response = await fetch(busIconUrls[key], {
+      const response = await fetch(busIconUrls[key], { 
         signal: controller.signal,
         headers: {
           'User-Agent': 'koreader-dashboard/1.0'
@@ -303,6 +297,13 @@ export async function renderTimePng() {
       busIconData[key] = ''
     }
   }))
+
+  // Grayscale palette for e-ink style
+  const bg = '#ffffff'
+  const fg = '#111111'
+  const stroke = '#c9c9c9'
+  const cardFill = '#f2f2f2'
+  const radius = 18
 
   // Layout constants (bento spacing)
   const margin = 14
@@ -400,13 +401,13 @@ export async function renderTimePng() {
           <!-- Agenda card -->
           <rect x="${rightX}" y="${leftY}" width="${rightWidth}" height="${agendaCardHeight}" rx="${radius}" ry="${radius}" fill="${cardFill}" stroke="${stroke}" stroke-width="1.5" shape-rendering="crispEdges"/>
           ${agendaDisplayItems.map((item, idx) => {
-    const groupY = agendaContentStartY + agendaHeaderHeight + agendaHeaderGap + idx * agendaEntrySpacing
-    return `<g transform="translate(${rightX + padding}, ${groupY})">
+            const groupY = agendaContentStartY + agendaHeaderHeight + agendaHeaderGap + idx * agendaEntrySpacing
+            return `<g transform="translate(${rightX + padding}, ${groupY})">
               <image href="${calendarIconDataUrl}" x="0" y="-10" width="18" height="18" />
               <text x="24" y="0" class="pixel-small" font-size="19" fill="${fg}" dominant-baseline="middle">${item.timeLabel}</text>
               <text x="0" y="26" class="pixel-small" font-size="17" fill="${fg}">${item.title}</text>
             </g>`
-  }).join('')}
+          }).join('')}
 
           <!-- Art filler right -->
           <g transform="translate(${rightX}, ${artCardY})">
@@ -418,13 +419,13 @@ export async function renderTimePng() {
           <g transform="translate(${rightX}, ${busCardY})">
             <rect x="0" y="0" width="${rightWidth}" height="${busCardHeight}" rx="${radius}" ry="${radius}" fill="${cardFill}" stroke="${stroke}" stroke-width="1.5" shape-rendering="crispEdges"/>
             ${busItems.map((item, idx) => {
-    const lineY = (busContentStartY - busCardY) + idx * busLineSpacing
-    const icon = busIconData[item.iconKey] || ''
-    return `<g transform="translate(${padding}, ${lineY})">
+              const lineY = (busContentStartY - busCardY) + idx * busLineSpacing
+              const icon = busIconData[item.iconKey] || ''
+              return `<g transform="translate(${padding}, ${lineY})">
                 <image href="${icon}" x="0" y="-11" width="20" height="20" />
                 <text x="26" y="0" class="pixel-small" font-size="18" fill="${fg}" dominant-baseline="middle">${item.route} // ${item.eta}</text>
               </g>`
-  }).join('')}
+            }).join('')}
           </g>
         </g>
       </g>
