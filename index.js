@@ -323,11 +323,11 @@ export async function renderTimePng () {
   const leftArtCardHeight = leftHeight - timeCardHeight - weatherCardHeight - gutter * 2
 
   // Right column card sizes
-  const agendaCardHeight = 180
+  const agendaCardHeight = 170
   const busCardHeight = 70
   const rightArtCardHeight = rightHeight - agendaCardHeight - busCardHeight - gutter * 2
 
-  const agendaHeaderHeight = 0
+  const agendaHeaderHeight = 5
   const agendaHeaderGap = 0
   const agendaEntrySpacing = 50
   const agendaLineHeight = 48
@@ -337,8 +337,6 @@ export async function renderTimePng () {
     : 0
   const agendaContentStartY = leftY + (agendaCardHeight - agendaContentHeight) / 2 + agendaLineOffsetTop
 
-  const busHeaderHeight = 0
-  const busHeaderGap = 0
   const busLineSpacing = 26
   const busIconOffsetTop = 11
   const busContentHeight = busItems.length
