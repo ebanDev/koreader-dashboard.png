@@ -21,3 +21,6 @@ http://localhost:3000/dashboard.png
 
 Notes
 - The image is generated on each request using a small 5x7 pixel font scaled up and encoded to PNG.
+- Set secrets in `.env` (not committed):
+  - `CALENDARS` for ICS feeds (comma-separated).
+  - `BORDEAUX_API_KEY` for live bus departures from Bordeaux Métropole.

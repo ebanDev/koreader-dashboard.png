@@ -23,6 +23,7 @@ const formatTimeLabel = (date) => eventTimeFormatter.format(date).replace(':', '
 const formatWeekdayLong = (date) => cap(date.toLocaleDateString('fr-FR', { weekday: 'long' }))
 const formatWeekdayShort = (date) => cap(date.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', ''))
 const formatMonthShort = (date) => cap(date.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', ''))
+const getParisTime = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }))
 
 const loadArtImage = async (baseName) => {
   const exts = ['png', 'jpg', 'jpeg', 'webp']
@@ -172,9 +173,135 @@ const fetchUpcomingCalendarEvents = async () => {
   })
 }
 
+const BUS_API_BASE_URL = 'https://data.bordeaux-metropole.fr/geojson/features/sv_horai_a?crs=epsg%3A4326&filter=%7B%0A%20%20%22rs_sv_arret_p%22%3A%20405%2C%0A%20%20%22etat%22%3A%20%22NON_REALISE%22%20%20%20%20%0A%7D&maxfeatures=3&orderby=%5B%22hor_theo%22%5D'
+let busApiKeyMissingLogged = false
+let bikeApiKeyMissingLogged = false
+
+const fetchBusDepartures = async () => {
+  const apiKey = process.env.BORDEAUX_API_KEY
+  if (!apiKey) {
+    if (!busApiKeyMissingLogged) {
+      console.warn('Missing BORDEAUX_API_KEY; showing placeholder bus data.')
+      busApiKeyMissingLogged = true
+    }
+    return []
+  }
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 10000)
+
+  try {
+    const response = await fetch(`${BUS_API_BASE_URL}&key=${encodeURIComponent(apiKey)}`, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'koreader-dashboard/1.0' }
+    })
+    const data = await response.json()
+    const now = Date.now()
+
+    const departures = (data?.features || [])
+      .map((feature) => {
+        const horTheo = feature?.properties?.hor_theo
+        if (!horTheo) return null
+
+        const horDate = new Date(horTheo)
+        if (Number.isNaN(horDate.getTime())) return null
+
+        const flooredMillis = Math.floor(horDate.getTime() / 60000) * 60000
+        const minutesUntil = Math.max(0, Math.floor((flooredMillis - now) / 60000))
+
+        return {
+          minutesUntil,
+          timestamp: flooredMillis
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.timestamp - b.timestamp)
+
+    return departures.slice(0, 3)
+  } catch (error) {
+    console.error('Bus API error:', error)
+    return []
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+const fetchBikeAvailability = async () => {
+  const parisNow = getParisTime()
+  const after6pm = parisNow.getHours() >= 18
+  const primaryName = after6pm ? 'Lycee Bremontier' : 'Nansouty'
+  const secondaryName = after6pm ? 'Victoire' : 'Doyen Brus'
+  const baseResult = {
+    primary: { name: primaryName, value: null },
+    secondary: { name: secondaryName, value: null }
+  }
+
+  const apiKey = process.env.BORDEAUX_API_KEY
+  if (!apiKey) {
+    if (!bikeApiKeyMissingLogged) {
+      console.warn('Missing BORDEAUX_API_KEY; showing placeholder bike data.')
+      bikeApiKeyMissingLogged = true
+    }
+    return baseResult
+  }
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 10000)
+
+  try {
+    const params = new URLSearchParams({
+      crs: 'epsg:4326',
+      filter: JSON.stringify({ $or: [{ Nom: primaryName }, { Nom: secondaryName }] }),
+      attributes: JSON.stringify(['NBPLACES', 'NBVELOS', 'NOM']),
+      maxfeatures: '2',
+      key: apiKey
+    })
+    const url = `https://data.bordeaux-metropole.fr/geojson/features/ci_vcub_p?${params.toString()}`
+
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'koreader-dashboard/1.0' }
+    })
+    const data = await response.json()
+
+    const toIntOrNull = (val) => {
+      if (val === null || val === undefined) return null
+      const num = Number.parseInt(val, 10)
+      return Number.isFinite(num) ? num : null
+    }
+
+    const stations = (data?.features || []).map((feature) => {
+      const props = feature?.properties || {}
+      const name = (props.nom || props.NOM || props.Nom || '').trim()
+      const nbplacesRaw = props.nbplaces ?? props.NBPLACES
+      const nbvelosRaw = props.nbvelos ?? props.NBVELOS
+      const nbplaces = toIntOrNull(nbplacesRaw)
+      const nbvelos = toIntOrNull(nbvelosRaw)
+      return { name, nbplaces, nbvelos }
+    })
+
+    const findStation = (targetName) => {
+      const wanted = targetName.toLowerCase()
+      return stations.find((s) => s.name.toLowerCase() === wanted)
+    }
+
+    const primaryStation = findStation(primaryName)
+    const secondaryStation = findStation(secondaryName)
+
+    return {
+      primary: { name: primaryName, value: primaryStation?.nbvelos ?? null },
+      secondary: { name: secondaryName, value: secondaryStation?.nbplaces ?? null }
+    }
+  } catch (error) {
+    console.error('Bike API error:', error)
+    return baseResult
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
 export async function renderTimePng () {
-  const now = new Date()
-  const parisTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Paris' }))
+  const parisTime = getParisTime()
   console.log('Paris time:', parisTime.toString())
   const hh = String(parisTime.getHours()).padStart(2, '0')
   const mm = String(parisTime.getMinutes()).padStart(2, '0')
@@ -280,15 +407,25 @@ export async function renderTimePng () {
     ? agendaItems
     : [{ title: 'NO UPCOMING EVENTS', timeLabel: '—' }]
 
+  const fetchedBusItems = await fetchBusDepartures()
+  const busMinutes = fetchedBusItems.length
+    ? fetchedBusItems.slice(0, 3).map((item) => item.minutesUntil)
+    : []
+  const busLineLabel = busMinutes.length ? `${busMinutes.join(' · ')}` : '—'
+
+  const bikeAvailability = await fetchBikeAvailability()
+  const initials = (name) => name.split(/\s+/).filter(Boolean).map((part) => part[0].toUpperCase()).join('').slice(0, 2)
+  const bikeLineLabel = `${initials(bikeAvailability.primary.name)} ${bikeAvailability.primary.value ?? '—'} · ${initials(bikeAvailability.secondary.name)} ${bikeAvailability.secondary.value ?? '—'}`
+
   const busItems = [
-    { route: '9', eta: '3 MIN', iconKey: 'bus' },
-    { route: 'B', eta: '8 MIN', iconKey: 'tram' }
+    { label: busLineLabel, iconKey: 'bus' },
+    { label: bikeLineLabel, iconKey: 'bike' }
   ]
 
-  // Bus/tram icons
+  // Bus/bike icons
   const busIconUrls = {
     bus: 'https://api.iconify.design/ph:bus-bold.svg',
-    tram: 'https://api.iconify.design/ph:tram-bold.svg'
+    bike: 'https://api.iconify.design/ph:bicycle-bold.svg'
   }
   const busIconData = {}
   const busIconKeys = [...new Set(busItems.map((item) => item.iconKey))]
@@ -436,7 +573,7 @@ export async function renderTimePng () {
               const icon = busIconData[item.iconKey] || ''
               return `<g transform="translate(${padding}, ${lineY})">
                 <image href="${icon}" x="0" y="-11" width="20" height="20" />
-                <text x="26" y="0" class="pixel-small" font-size="18" fill="${fg}" dominant-baseline="middle">${item.route} // ${item.eta}</text>
+                <text x="26" y="0" class="pixel-small" font-size="18" fill="${fg}" dominant-baseline="middle">// ${item.label}</text>
               </g>`
             }).join('')}
           </g>
