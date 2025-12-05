@@ -58,15 +58,10 @@ const fetchSunriseSunsetData = async () => {
     clearTimeout(timeoutId)
     
     if (data.status === 'OK' && data.results) {
-      const sunriseISO = data.results.sunrise
-      const sunsetISO = data.results.sunset
-      const nauticalTwilightBeginISO = data.results.nautical_twilight_begin
-      const nauticalTwilightEndISO = data.results.nautical_twilight_end
-      
-      const sunriseTime = toParisDate(sunriseISO)
-      const sunsetTime = toParisDate(sunsetISO)
-      const nauticalTwilightBeginTime = toParisDate(nauticalTwilightBeginISO)
-      const nauticalTwilightEndTime = toParisDate(nauticalTwilightEndISO)
+      const sunriseTime = new Date(data.results.sunrise)
+      const sunsetTime = new Date(data.results.sunset)
+      const nauticalTwilightBeginTime = new Date(data.results.nautical_twilight_begin)
+      const nauticalTwilightEndTime = new Date(data.results.nautical_twilight_end)
       
       const formatTime = (date) => {
         return eventTimeFormatter.format(date)
