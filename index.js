@@ -84,9 +84,8 @@ const generateSunriseSunsetSvg = (width, height, sunData, currentTime, icons, ra
   const midnight = '00:00'
   
   // Calculate the position of the moving dot based on current time
-  const now = currentTime
-  const currentHours = now.getHours()
-  const currentMinutes = now.getMinutes()
+  const currentHours = currentTime.getHours()
+  const currentMinutes = currentTime.getMinutes()
   const currentTotalMinutes = currentHours * 60 + currentMinutes
   
   // Parse sunrise and sunset times
@@ -107,22 +106,22 @@ const generateSunriseSunsetSvg = (width, height, sunData, currentTime, icons, ra
     // Morning: sunrise to noon (bottom-left to top-left)
     const duration = noonMinutes - sunriseMinutes
     const elapsed = currentTotalMinutes - sunriseMinutes
-    progress = (elapsed / duration) * 0.25
+    progress = duration > 0 ? (elapsed / duration) * 0.25 : 0
   } else if (currentTotalMinutes >= noonMinutes && currentTotalMinutes < sunsetMinutes) {
     // Afternoon: noon to sunset (top-left to top-right)
     const duration = sunsetMinutes - noonMinutes
     const elapsed = currentTotalMinutes - noonMinutes
-    progress = 0.25 + (elapsed / duration) * 0.25
+    progress = duration > 0 ? 0.25 + (elapsed / duration) * 0.25 : 0.25
   } else if (currentTotalMinutes >= sunsetMinutes) {
     // Evening: sunset to midnight (top-right to bottom-right)
     const duration = dayEnd - sunsetMinutes
     const elapsed = currentTotalMinutes - sunsetMinutes
-    progress = 0.5 + (elapsed / duration) * 0.25
+    progress = duration > 0 ? 0.5 + (elapsed / duration) * 0.25 : 0.5
   } else {
     // Night: midnight to sunrise (bottom-right to bottom-left)
     const duration = sunriseMinutes
     const elapsed = currentTotalMinutes
-    progress = 0.75 + (elapsed / duration) * 0.25
+    progress = duration > 0 ? 0.75 + (elapsed / duration) * 0.25 : 0.75
   }
   
   // Calculate dot position on the rounded rectangle perimeter
@@ -529,7 +528,7 @@ export async function renderTimePng () {
     sun: 'https://api.iconify.design/ph:sun-bold.svg',
     sunset: 'https://api.iconify.design/ph:sun-horizon-bold.svg',
     moon: 'https://api.iconify.design/ph:moon-bold.svg',
-    sunrise: 'https://api.iconify.design/ph:sun-horizon-bold.svg'
+    sunrise: 'https://api.iconify.design/ph:sun-dim-bold.svg'
   }
   const sunCycleIcons = { sun: '', sunset: '', moon: '', sunrise: '' }
   await Promise.all(Object.entries(sunCycleIconUrls).map(async ([key, url]) => {
