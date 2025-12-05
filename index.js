@@ -95,40 +95,53 @@ const generateSunriseSunsetSvg = (width, height, sunData, currentTime, icons, ra
   const currentMinutes = currentTime.getMinutes()
   const currentTotalMinutes = currentHours * 60 + currentMinutes
   
-  // Parse sunrise and sunset times
-  const [sunriseHour, sunriseMin] = sunData.sunrise.split(':').map(Number)
-  const [sunsetHour, sunsetMin] = sunData.sunset.split(':').map(Number)
-  const sunriseMinutes = sunriseHour * 60 + sunriseMin
-  const sunsetMinutes = sunsetHour * 60 + sunsetMin
+  const toMinutes = (timeString) => {
+    const [h = '0', m = '0'] = String(timeString || '').split(':')
+    const hour = Number.parseInt(h, 10)
+    const minute = Number.parseInt(m, 10)
+    return (Number.isFinite(hour) ? hour : 0) * 60 + (Number.isFinite(minute) ? minute : 0)
+  }
   
-  // Define key points in minutes from midnight
-  const noonMinutes = 12 * 60 // 720
-  const dayEnd = 24 * 60 // 1440
+  const dawnMinutes = toMinutes(sunData.nauticalTwilightBegin)
+  const sunriseMinutes = toMinutes(sunData.sunrise)
+  const sunsetMinutes = toMinutes(sunData.sunset)
+  const duskMinutes = toMinutes(sunData.nauticalTwilightEnd)
   
-  // Calculate progress around the perimeter (0 to 1)
-  // Layout: sunrise (bottom-left) -> noon (top-left) -> sunset (top-right) -> midnight (bottom-right) -> back to sunrise
-  let progress = 0
+  // Ensure the anchor times are strictly increasing across the 24h cycle
+  const normalizedTimes = [dawnMinutes, sunriseMinutes, sunsetMinutes, duskMinutes].reduce((acc, value, idx) => {
+    let minutes = Number.isFinite(value) ? value : 0
+    if (idx > 0) {
+      while (minutes <= acc[idx - 1]) minutes += 1440
+    }
+    acc.push(minutes)
+    return acc
+  }, [])
+  const [dawn, sunrise, sunset, duskEnd] = normalizedTimes
   
-  if (currentTotalMinutes >= sunriseMinutes && currentTotalMinutes < noonMinutes) {
-    // Morning: sunrise to noon (bottom-left to top-left)
-    const duration = noonMinutes - sunriseMinutes
-    const elapsed = currentTotalMinutes - sunriseMinutes
-    progress = duration > 0 ? (elapsed / duration) * 0.25 : 0
-  } else if (currentTotalMinutes >= noonMinutes && currentTotalMinutes < sunsetMinutes) {
-    // Afternoon: noon to sunset (top-left to top-right)
-    const duration = sunsetMinutes - noonMinutes
-    const elapsed = currentTotalMinutes - noonMinutes
-    progress = duration > 0 ? 0.25 + (elapsed / duration) * 0.25 : 0.25
-  } else if (currentTotalMinutes >= sunsetMinutes) {
-    // Evening: sunset to midnight (top-right to bottom-right)
-    const duration = dayEnd - sunsetMinutes
-    const elapsed = currentTotalMinutes - sunsetMinutes
-    progress = duration > 0 ? 0.5 + (elapsed / duration) * 0.25 : 0.5
-  } else {
-    // Night: midnight to sunrise (bottom-right to bottom-left)
-    const duration = sunriseMinutes
-    const elapsed = currentTotalMinutes
-    progress = duration > 0 ? 0.75 + (elapsed / duration) * 0.25 : 0.75
+  // Align the current time to the same cycle (times between duskEnd and next dawn belong to the last segment)
+  let alignedCurrentMinutes = currentTotalMinutes
+  while (alignedCurrentMinutes < dawn) alignedCurrentMinutes += 1440
+  
+  const timelineAnchors = [
+    { time: dawn },
+    { time: sunrise },
+    { time: sunset },
+    { time: duskEnd },
+    { time: dawn + 1440 } // wrap to next day
+  ]
+  
+  let segmentIndex = timelineAnchors.length - 2
+  let segmentTimeRatio = 0
+  for (let i = 0; i < timelineAnchors.length - 1; i++) {
+    const start = timelineAnchors[i]
+    const end = timelineAnchors[i + 1]
+    if (alignedCurrentMinutes <= end.time) {
+      const span = Math.max(1, end.time - start.time)
+      const elapsed = alignedCurrentMinutes - start.time
+      segmentIndex = i
+      segmentTimeRatio = Math.min(Math.max(elapsed / span, 0), 1)
+      break
+    }
   }
   
   // Define the oblong track path (inset from the card edges)
@@ -142,10 +155,7 @@ const generateSunriseSunsetSvg = (width, height, sunData, currentTime, icons, ra
   const trackHeight = trackBottom - trackTop
   
   // Calculate dot position on the rounded rectangle track
-  // 0.0 = bottom-left corner (sunrise)
-  // 0.25 = top-left corner (noon)
-  // 0.5 = top-right corner (sunset)
-  // 0.75 = bottom-right corner (midnight)
+  // nautical twilight begin (bottom-left) -> sunrise (top-left) -> sunset (top-right) -> nautical twilight end (bottom-right) -> next nautical twilight begin
   
   let dotX, dotY
   
@@ -155,8 +165,19 @@ const generateSunriseSunsetSvg = (width, height, sunData, currentTime, icons, ra
   const cornerArc = (Math.PI * trackRadius) / 2 // quarter circle arc length
   const totalPerimeter = 2 * straightH + 2 * straightV + 4 * cornerArc
   
-  // Map progress to distance along perimeter, starting from bottom-left
-  const distance = progress * totalPerimeter
+  // Distances on the path for each anchor time (matching timelineAnchors order)
+  const anchorDistances = [
+    0,
+    straightV + cornerArc * 2, // up left edge to sunrise
+    straightV + straightH + cornerArc * 3, // across top to sunset
+    straightV * 2 + straightH + cornerArc * 4, // down right edge to nautical twilight end
+    totalPerimeter // loop back along bottom edge
+  ]
+  
+  const startDistance = anchorDistances[segmentIndex] ?? 0
+  const endDistance = anchorDistances[segmentIndex + 1] ?? totalPerimeter
+  const rawDistance = startDistance + segmentTimeRatio * (endDistance - startDistance)
+  const distance = Math.min(Math.max(rawDistance, 0), totalPerimeter)
   
   // Define segment lengths in order: bottom-left corner, left edge, top-left corner, top edge, top-right corner, right edge, bottom-right corner, bottom edge
   const segments = [
