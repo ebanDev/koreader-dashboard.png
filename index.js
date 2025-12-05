@@ -25,6 +25,224 @@ const formatWeekdayShort = (date) => cap(date.toLocaleDateString('fr-FR', { week
 const formatMonthShort = (date) => cap(date.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', ''))
 const getParisTime = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }))
 
+// Fetch sunrise/sunset times from Open-Meteo API for Bordeaux
+const fetchSunriseSunsetData = async () => {
+  const defaultData = {
+    sunrise: '07:30',
+    sunset: '17:30',
+    sunriseTime: new Date(),
+    sunsetTime: new Date()
+  }
+  
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000)
+    
+    const response = await fetch(
+      'https://api.open-meteo.com/v1/forecast?latitude=44.8404&longitude=-0.5805&daily=sunrise,sunset&timezone=Europe%2FParis&forecast_days=1',
+      {
+        signal: controller.signal,
+        headers: { 'User-Agent': 'koreader-dashboard/1.0' }
+      }
+    )
+    const data = await response.json()
+    clearTimeout(timeoutId)
+    
+    if (data.daily && data.daily.sunrise && data.daily.sunset) {
+      const sunriseISO = data.daily.sunrise[0]
+      const sunsetISO = data.daily.sunset[0]
+      const sunriseTime = new Date(sunriseISO)
+      const sunsetTime = new Date(sunsetISO)
+      
+      const formatTime = (date) => {
+        const hours = String(date.getHours()).padStart(2, '0')
+        const minutes = String(date.getMinutes()).padStart(2, '0')
+        return `${hours}:${minutes}`
+      }
+      
+      return {
+        sunrise: formatTime(sunriseTime),
+        sunset: formatTime(sunsetTime),
+        sunriseTime,
+        sunsetTime
+      }
+    }
+    return defaultData
+  } catch (error) {
+    console.error('Sunrise/Sunset API error:', error)
+    return defaultData
+  }
+}
+
+// Generate the sunset-sunrise oblong SVG visualization
+const generateSunriseSunsetSvg = (width, height, sunData, currentTime, icons, radius = 18) => {
+  const padding = 12
+  const iconSize = 24
+  const fontSize = 12
+  
+  const noon = '12:00'
+  const midnight = '00:00'
+  
+  // Calculate the position of the moving dot based on current time
+  const currentHours = currentTime.getHours()
+  const currentMinutes = currentTime.getMinutes()
+  const currentTotalMinutes = currentHours * 60 + currentMinutes
+  
+  // Parse sunrise and sunset times
+  const [sunriseHour, sunriseMin] = sunData.sunrise.split(':').map(Number)
+  const [sunsetHour, sunsetMin] = sunData.sunset.split(':').map(Number)
+  const sunriseMinutes = sunriseHour * 60 + sunriseMin
+  const sunsetMinutes = sunsetHour * 60 + sunsetMin
+  
+  // Define key points in minutes from midnight
+  const noonMinutes = 12 * 60 // 720
+  const dayEnd = 24 * 60 // 1440
+  
+  // Calculate progress around the perimeter (0 to 1)
+  // Layout: sunrise (bottom-left) -> noon (top-left) -> sunset (top-right) -> midnight (bottom-right) -> back to sunrise
+  let progress = 0
+  
+  if (currentTotalMinutes >= sunriseMinutes && currentTotalMinutes < noonMinutes) {
+    // Morning: sunrise to noon (bottom-left to top-left)
+    const duration = noonMinutes - sunriseMinutes
+    const elapsed = currentTotalMinutes - sunriseMinutes
+    progress = duration > 0 ? (elapsed / duration) * 0.25 : 0
+  } else if (currentTotalMinutes >= noonMinutes && currentTotalMinutes < sunsetMinutes) {
+    // Afternoon: noon to sunset (top-left to top-right)
+    const duration = sunsetMinutes - noonMinutes
+    const elapsed = currentTotalMinutes - noonMinutes
+    progress = duration > 0 ? 0.25 + (elapsed / duration) * 0.25 : 0.25
+  } else if (currentTotalMinutes >= sunsetMinutes) {
+    // Evening: sunset to midnight (top-right to bottom-right)
+    const duration = dayEnd - sunsetMinutes
+    const elapsed = currentTotalMinutes - sunsetMinutes
+    progress = duration > 0 ? 0.5 + (elapsed / duration) * 0.25 : 0.5
+  } else {
+    // Night: midnight to sunrise (bottom-right to bottom-left)
+    const duration = sunriseMinutes
+    const elapsed = currentTotalMinutes
+    progress = duration > 0 ? 0.75 + (elapsed / duration) * 0.25 : 0.75
+  }
+  
+  // Define the oblong track path (inset from the card edges)
+  const trackInset = 50 // Distance from card edge to the track
+  const trackRadius = 12 // Corner radius of the track
+  const trackLeft = trackInset
+  const trackTop = trackInset
+  const trackRight = width - trackInset
+  const trackBottom = height - trackInset
+  const trackWidth = trackRight - trackLeft
+  const trackHeight = trackBottom - trackTop
+  
+  // Calculate dot position on the rounded rectangle track
+  // 0.0 = bottom-left corner (sunrise)
+  // 0.25 = top-left corner (noon)
+  // 0.5 = top-right corner (sunset)
+  // 0.75 = bottom-right corner (midnight)
+  
+  let dotX, dotY
+  
+  // Calculate perimeter segments
+  const straightH = trackWidth - 2 * trackRadius // horizontal straight sections
+  const straightV = trackHeight - 2 * trackRadius // vertical straight sections
+  const cornerArc = (Math.PI * trackRadius) / 2 // quarter circle arc length
+  const totalPerimeter = 2 * straightH + 2 * straightV + 4 * cornerArc
+  
+  // Map progress to distance along perimeter, starting from bottom-left
+  const distance = progress * totalPerimeter
+  
+  // Define segment lengths in order: bottom-left corner, left edge, top-left corner, top edge, top-right corner, right edge, bottom-right corner, bottom edge
+  const segments = [
+    { type: 'corner', length: cornerArc, cx: trackLeft + trackRadius, cy: trackBottom - trackRadius, startAngle: Math.PI / 2, dir: 1 }, // bottom-left going up
+    { type: 'line', length: straightV, x1: trackLeft, y1: trackBottom - trackRadius, x2: trackLeft, y2: trackTop + trackRadius }, // left edge
+    { type: 'corner', length: cornerArc, cx: trackLeft + trackRadius, cy: trackTop + trackRadius, startAngle: Math.PI, dir: 1 }, // top-left
+    { type: 'line', length: straightH, x1: trackLeft + trackRadius, y1: trackTop, x2: trackRight - trackRadius, y2: trackTop }, // top edge
+    { type: 'corner', length: cornerArc, cx: trackRight - trackRadius, cy: trackTop + trackRadius, startAngle: -Math.PI / 2, dir: 1 }, // top-right
+    { type: 'line', length: straightV, x1: trackRight, y1: trackTop + trackRadius, x2: trackRight, y2: trackBottom - trackRadius }, // right edge
+    { type: 'corner', length: cornerArc, cx: trackRight - trackRadius, cy: trackBottom - trackRadius, startAngle: 0, dir: 1 }, // bottom-right
+    { type: 'line', length: straightH, x1: trackRight - trackRadius, y1: trackBottom, x2: trackLeft + trackRadius, y2: trackBottom } // bottom edge
+  ]
+  
+  let accumulated = 0
+  for (const seg of segments) {
+    if (accumulated + seg.length >= distance) {
+      const segProgress = (distance - accumulated) / seg.length
+      if (seg.type === 'corner') {
+        const angle = seg.startAngle + segProgress * (Math.PI / 2) * seg.dir
+        dotX = seg.cx + trackRadius * Math.cos(angle)
+        dotY = seg.cy + trackRadius * Math.sin(angle)
+      } else {
+        dotX = seg.x1 + segProgress * (seg.x2 - seg.x1)
+        dotY = seg.y1 + segProgress * (seg.y2 - seg.y1)
+      }
+      break
+    }
+    accumulated += seg.length
+  }
+  
+  // Fallback if calculation fails - use bottom-left corner start position on the track
+  if (dotX === undefined) {
+    dotX = trackLeft + trackRadius
+    dotY = trackBottom
+  }
+  
+  // Corner positions for icons and times
+  const topLeftX = padding
+  const topLeftY = padding
+  const topRightX = width - padding - iconSize
+  const topRightY = padding
+  const bottomRightX = width - padding - iconSize
+  const bottomRightY = height - padding - iconSize - fontSize - 2
+  const bottomLeftX = padding
+  const bottomLeftY = height - padding - iconSize - fontSize - 2
+  
+  // Create the oblong track path
+  const trackPath = `M ${trackLeft + trackRadius} ${trackBottom}
+    A ${trackRadius} ${trackRadius} 0 0 1 ${trackLeft} ${trackBottom - trackRadius}
+    L ${trackLeft} ${trackTop + trackRadius}
+    A ${trackRadius} ${trackRadius} 0 0 1 ${trackLeft + trackRadius} ${trackTop}
+    L ${trackRight - trackRadius} ${trackTop}
+    A ${trackRadius} ${trackRadius} 0 0 1 ${trackRight} ${trackTop + trackRadius}
+    L ${trackRight} ${trackBottom - trackRadius}
+    A ${trackRadius} ${trackRadius} 0 0 1 ${trackRight - trackRadius} ${trackBottom}
+    Z`
+  
+  return `
+    <!-- Monochrome background -->
+    <rect x="0" y="0" width="${width}" height="${height}" rx="${radius}" ry="${radius}" fill="#f2f2f2" stroke="#111111" stroke-width="1.5"/>
+    
+    <!-- Oblong track path for the dot to travel on (black, thick) -->
+    <path d="${trackPath}" fill="none" stroke="#111111" stroke-width="6"/>
+    
+    <!-- Top Left: Sun (noon/daytime) -->
+    <g transform="translate(${topLeftX}, ${topLeftY})">
+      <image href="${icons.sun}" x="0" y="0" width="${iconSize}" height="${iconSize}" />
+      <text x="${iconSize / 2}" y="${iconSize + fontSize + 2}" font-family="monospace" font-size="${fontSize}" fill="#111111" text-anchor="middle" font-weight="700">${noon}</text>
+    </g>
+    
+    <!-- Top Right: Sunset -->
+    <g transform="translate(${topRightX}, ${topRightY})">
+      <image href="${icons.sunset}" x="0" y="0" width="${iconSize}" height="${iconSize}" />
+      <text x="${iconSize / 2}" y="${iconSize + fontSize + 2}" font-family="monospace" font-size="${fontSize}" fill="#111111" text-anchor="middle" font-weight="700">${sunData.sunset}</text>
+    </g>
+    
+    <!-- Bottom Right: Moon (midnight/nighttime) -->
+    <g transform="translate(${bottomRightX}, ${bottomRightY})">
+      <image href="${icons.moon}" x="0" y="0" width="${iconSize}" height="${iconSize}" />
+      <text x="${iconSize / 2}" y="${iconSize + fontSize + 2}" font-family="monospace" font-size="${fontSize}" fill="#111111" text-anchor="middle" font-weight="700">${midnight}</text>
+    </g>
+    
+    <!-- Bottom Left: Sunrise -->
+    <g transform="translate(${bottomLeftX}, ${bottomLeftY})">
+      <image href="${icons.sunrise}" x="0" y="0" width="${iconSize}" height="${iconSize}" />
+      <text x="${iconSize / 2}" y="${iconSize + fontSize + 2}" font-family="monospace" font-size="${fontSize}" fill="#111111" text-anchor="middle" font-weight="700">${sunData.sunrise}</text>
+    </g>
+    
+    <!-- Moving dot indicator (current time position) on the oblong track -->
+    <circle cx="${dotX}" cy="${dotY}" r="12" fill="#111111" stroke="#f2f2f2" stroke-width="4"/>
+  `
+}
+
 const loadArtImage = async (baseName) => {
   const exts = ['png', 'jpg', 'jpeg', 'webp']
   for (const ext of exts) {
@@ -337,8 +555,34 @@ export async function renderTimePng () {
     console.error('Weather API error:', error)
   }
 
-  // Load art images
-  const art1DataUrl = await loadArtImage('art1')
+  // Fetch sunrise/sunset data for the sun position visualization
+  const sunData = await fetchSunriseSunsetData()
+  
+  // Fetch sun cycle icons from Iconify
+  const sunCycleIconUrls = {
+    sun: 'https://api.iconify.design/ph:sun-bold.svg',
+    sunset: 'https://api.iconify.design/ph:sun-horizon-bold.svg',
+    moon: 'https://api.iconify.design/ph:moon-bold.svg',
+    sunrise: 'https://api.iconify.design/ph:sun-dim-bold.svg'
+  }
+  const sunCycleIcons = { sun: '', sunset: '', moon: '', sunrise: '' }
+  await Promise.all(Object.entries(sunCycleIconUrls).map(async ([key, url]) => {
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000)
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: { 'User-Agent': 'koreader-dashboard/1.0' }
+      })
+      const svgContent = await response.text()
+      sunCycleIcons[key] = `data:image/svg+xml;utf8,${encodeURIComponent(svgContent)}`
+      clearTimeout(timeoutId)
+    } catch (error) {
+      console.error(`Sun cycle icon error (${key}):`, error)
+    }
+  }))
+  
+  // Load art2 image (art1 is replaced by sunrise/sunset visualization)
   const art2DataUrl = await loadArtImage('art2')
 
   // Select weather icon based on weather code and fetch as data URL
@@ -509,9 +753,6 @@ export async function renderTimePng () {
         .pixel-small { font-family: "Pixelify Sans", "Press Start 2P", "Courier New", monospace; font-weight: 600; letter-spacing: 0.4px; }
       </style>
       <defs>
-        <clipPath id="clip-art1" clipPathUnits="objectBoundingBox">
-          <rect x="0" y="0" width="1" height="1" rx="${radius / leftWidth}" ry="${radius / leftArtCardHeight}" />
-        </clipPath>
         <clipPath id="clip-art2" clipPathUnits="objectBoundingBox">
           <rect x="0" y="0" width="1" height="1" rx="${radius / rightWidth}" ry="${radius / rightArtCardHeight}" />
         </clipPath>
@@ -539,10 +780,9 @@ export async function renderTimePng () {
             </g>
           </g>
 
-          <!-- Art filler left -->
+          <!-- Sunrise/Sunset visualization (replaces art1) -->
           <g transform="translate(${leftX}, ${leftY + timeCardHeight + weatherCardHeight + gutter * 2})">
-            <rect x="0" y="0" width="${leftWidth}" height="${leftArtCardHeight}" rx="${radius}" ry="${radius}" fill="${cardFill}" stroke="${stroke}" stroke-width="1.5" shape-rendering="crispEdges"/>
-            ${art1DataUrl ? `<g clip-path="url(#clip-art1)"><image href="${art1DataUrl}" x="0" y="0" width="${leftWidth}" height="${leftArtCardHeight}" preserveAspectRatio="xMidYMid slice" /></g>` : `<text x="${padding}" y="${leftArtCardHeight / 2}" class="pixel-small" font-size="16" fill="${fg}" dominant-baseline="middle">ART 01 //</text>`}
+            ${generateSunriseSunsetSvg(leftWidth, leftArtCardHeight, sunData, parisTime, sunCycleIcons, radius)}
           </g>
         </g>
 
