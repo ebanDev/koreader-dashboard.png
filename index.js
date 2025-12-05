@@ -208,48 +208,38 @@ const generateSunriseSunsetSvg = (width, height, sunData, currentTime, icons, ra
     Z`
   
   return `
-    <defs>
-      <linearGradient id="sunGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" style="stop-color:#fef9c3;stop-opacity:1" />
-        <stop offset="30%" style="stop-color:#fde047;stop-opacity:1" />
-        <stop offset="50%" style="stop-color:#fb923c;stop-opacity:1" />
-        <stop offset="70%" style="stop-color:#64748b;stop-opacity:1" />
-        <stop offset="100%" style="stop-color:#1e293b;stop-opacity:1" />
-      </linearGradient>
-    </defs>
+    <!-- Monochrome background -->
+    <rect x="0" y="0" width="${width}" height="${height}" rx="${radius}" ry="${radius}" fill="#f2f2f2" stroke="#111111" stroke-width="1.5"/>
     
-    <!-- Background with gradient -->
-    <rect x="0" y="0" width="${width}" height="${height}" rx="${radius}" ry="${radius}" fill="url(#sunGradient)" stroke="#94a3b8" stroke-width="1.5"/>
-    
-    <!-- Oblong track path for the dot to travel on -->
-    <path d="${trackPath}" fill="none" stroke="#ffffff" stroke-width="2" stroke-opacity="0.5"/>
+    <!-- Oblong track path for the dot to travel on (black, thick) -->
+    <path d="${trackPath}" fill="none" stroke="#111111" stroke-width="6"/>
     
     <!-- Top Left: Sun (noon/daytime) -->
     <g transform="translate(${topLeftX}, ${topLeftY})">
       <image href="${icons.sun}" x="0" y="0" width="${iconSize}" height="${iconSize}" />
-      <text x="${iconSize / 2}" y="${iconSize + fontSize + 2}" font-family="monospace" font-size="${fontSize}" fill="#422006" text-anchor="middle" font-weight="700">${noon}</text>
+      <text x="${iconSize / 2}" y="${iconSize + fontSize + 2}" font-family="monospace" font-size="${fontSize}" fill="#111111" text-anchor="middle" font-weight="700">${noon}</text>
     </g>
     
     <!-- Top Right: Sunset -->
     <g transform="translate(${topRightX}, ${topRightY})">
       <image href="${icons.sunset}" x="0" y="0" width="${iconSize}" height="${iconSize}" />
-      <text x="${iconSize / 2}" y="${iconSize + fontSize + 2}" font-family="monospace" font-size="${fontSize}" fill="#7c2d12" text-anchor="middle" font-weight="700">${sunData.sunset}</text>
+      <text x="${iconSize / 2}" y="${iconSize + fontSize + 2}" font-family="monospace" font-size="${fontSize}" fill="#111111" text-anchor="middle" font-weight="700">${sunData.sunset}</text>
     </g>
     
     <!-- Bottom Right: Moon (midnight/nighttime) -->
     <g transform="translate(${bottomRightX}, ${bottomRightY})">
       <image href="${icons.moon}" x="0" y="0" width="${iconSize}" height="${iconSize}" />
-      <text x="${iconSize / 2}" y="${iconSize + fontSize + 2}" font-family="monospace" font-size="${fontSize}" fill="#e2e8f0" text-anchor="middle" font-weight="700">${midnight}</text>
+      <text x="${iconSize / 2}" y="${iconSize + fontSize + 2}" font-family="monospace" font-size="${fontSize}" fill="#111111" text-anchor="middle" font-weight="700">${midnight}</text>
     </g>
     
     <!-- Bottom Left: Sunrise -->
     <g transform="translate(${bottomLeftX}, ${bottomLeftY})">
       <image href="${icons.sunrise}" x="0" y="0" width="${iconSize}" height="${iconSize}" />
-      <text x="${iconSize / 2}" y="${iconSize + fontSize + 2}" font-family="monospace" font-size="${fontSize}" fill="#374151" text-anchor="middle" font-weight="700">${sunData.sunrise}</text>
+      <text x="${iconSize / 2}" y="${iconSize + fontSize + 2}" font-family="monospace" font-size="${fontSize}" fill="#111111" text-anchor="middle" font-weight="700">${sunData.sunrise}</text>
     </g>
     
     <!-- Moving dot indicator (current time position) on the oblong track -->
-    <circle cx="${dotX}" cy="${dotY}" r="6" fill="#dc2626" stroke="#ffffff" stroke-width="2"/>
+    <circle cx="${dotX}" cy="${dotY}" r="12" fill="#111111" stroke="#f2f2f2" stroke-width="4"/>
   `
 }
 
