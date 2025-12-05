@@ -25,11 +25,13 @@ const formatWeekdayShort = (date) => cap(date.toLocaleDateString('fr-FR', { week
 const formatMonthShort = (date) => cap(date.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', ''))
 const getParisTime = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }))
 
-// Fetch sunrise/sunset times from Open-Meteo API for Bordeaux
+// Fetch sunrise/sunset times from sunrise-sunset.org API for Bordeaux
 const fetchSunriseSunsetData = async () => {
   const defaultData = {
     sunrise: '07:30',
     sunset: '17:30',
+    nauticalTwilightBegin: '06:30',
+    nauticalTwilightEnd: '18:30',
     sunriseTime: new Date(),
     sunsetTime: new Date()
   }
@@ -39,7 +41,7 @@ const fetchSunriseSunsetData = async () => {
     const timeoutId = setTimeout(() => controller.abort(), 10000)
     
     const response = await fetch(
-      'https://api.open-meteo.com/v1/forecast?latitude=44.8404&longitude=-0.5805&daily=sunrise,sunset&timezone=Europe%2FParis&forecast_days=1',
+      'https://api.sunrise-sunset.org/json?lat=44.8404&lng=-0.5805&formatted=0',
       {
         signal: controller.signal,
         headers: { 'User-Agent': 'koreader-dashboard/1.0' }
@@ -48,11 +50,16 @@ const fetchSunriseSunsetData = async () => {
     const data = await response.json()
     clearTimeout(timeoutId)
     
-    if (data.daily && data.daily.sunrise && data.daily.sunset) {
-      const sunriseISO = data.daily.sunrise[0]
-      const sunsetISO = data.daily.sunset[0]
+    if (data.status === 'OK' && data.results) {
+      const sunriseISO = data.results.sunrise
+      const sunsetISO = data.results.sunset
+      const nauticalTwilightBeginISO = data.results.nautical_twilight_begin
+      const nauticalTwilightEndISO = data.results.nautical_twilight_end
+      
       const sunriseTime = new Date(sunriseISO)
       const sunsetTime = new Date(sunsetISO)
+      const nauticalTwilightBeginTime = new Date(nauticalTwilightBeginISO)
+      const nauticalTwilightEndTime = new Date(nauticalTwilightEndISO)
       
       const formatTime = (date) => {
         const hours = String(date.getHours()).padStart(2, '0')
@@ -63,6 +70,8 @@ const fetchSunriseSunsetData = async () => {
       return {
         sunrise: formatTime(sunriseTime),
         sunset: formatTime(sunsetTime),
+        nauticalTwilightBegin: formatTime(nauticalTwilightBeginTime),
+        nauticalTwilightEnd: formatTime(nauticalTwilightEndTime),
         sunriseTime,
         sunsetTime
       }
@@ -78,11 +87,8 @@ const fetchSunriseSunsetData = async () => {
 const generateSunriseSunsetSvg = (width, height, sunData, currentTime, icons, radius = 18) => {
   const padding = 12
   const iconSize = 24
-  const fontSize = 12
-  
-  const noon = '12:00'
-  const midnight = '00:00'
-  
+  const fontSize = 18
+    
   // Calculate the position of the moving dot based on current time
   const currentHours = currentTime.getHours()
   const currentMinutes = currentTime.getMinutes()
@@ -209,37 +215,37 @@ const generateSunriseSunsetSvg = (width, height, sunData, currentTime, icons, ra
   
   return `
     <!-- Monochrome background -->
-    <rect x="0" y="0" width="${width}" height="${height}" rx="${radius}" ry="${radius}" fill="#f2f2f2" stroke="#111111" stroke-width="1.5"/>
+    <rect x="0" y="0" width="${width}" height="${height}" rx="${radius}" ry="${radius}" fill="#f2f2f2" stroke="#c9c9c9" stroke-width="1.5"/>
     
     <!-- Oblong track path for the dot to travel on (black, thick) -->
-    <path d="${trackPath}" fill="none" stroke="#111111" stroke-width="6"/>
+    <path d="${trackPath}" fill="none" stroke="#111111" stroke-width="3"/>
     
-    <!-- Top Left: Sun (noon/daytime) -->
+    <!-- Top Left: Sun (sunrise) - label on right side -->
     <g transform="translate(${topLeftX}, ${topLeftY})">
       <image href="${icons.sun}" x="0" y="0" width="${iconSize}" height="${iconSize}" />
-      <text x="${iconSize / 2}" y="${iconSize + fontSize + 2}" font-family="monospace" font-size="${fontSize}" fill="#111111" text-anchor="middle" font-weight="700">${noon}</text>
+      <text x="${iconSize + 6}" y="${iconSize / 2 + fontSize / 2}" font-family="monospace" font-size="${fontSize}" fill="#111111" text-anchor="start" font-weight="700">${sunData.sunrise}</text>
     </g>
     
-    <!-- Top Right: Sunset -->
+    <!-- Top Right: Sunset - label on left side -->
     <g transform="translate(${topRightX}, ${topRightY})">
       <image href="${icons.sunset}" x="0" y="0" width="${iconSize}" height="${iconSize}" />
-      <text x="${iconSize / 2}" y="${iconSize + fontSize + 2}" font-family="monospace" font-size="${fontSize}" fill="#111111" text-anchor="middle" font-weight="700">${sunData.sunset}</text>
+      <text x="-6" y="${iconSize / 2 + fontSize / 2}" font-family="monospace" font-size="${fontSize}" fill="#111111" text-anchor="end" font-weight="700">${sunData.sunset}</text>
     </g>
     
-    <!-- Bottom Right: Moon (midnight/nighttime) -->
+    <!-- Bottom Right: Moon (nautical twilight end) - label on left side -->
     <g transform="translate(${bottomRightX}, ${bottomRightY})">
       <image href="${icons.moon}" x="0" y="0" width="${iconSize}" height="${iconSize}" />
-      <text x="${iconSize / 2}" y="${iconSize + fontSize + 2}" font-family="monospace" font-size="${fontSize}" fill="#111111" text-anchor="middle" font-weight="700">${midnight}</text>
+      <text x="-6" y="24" font-family="monospace" font-size="${fontSize}" fill="#111111" text-anchor="end" font-weight="700">${sunData.nauticalTwilightEnd}</text>
     </g>
     
-    <!-- Bottom Left: Sunrise -->
+    <!-- Bottom Left: Nautical Twilight (nautical twilight begin) - label on right side -->
     <g transform="translate(${bottomLeftX}, ${bottomLeftY})">
       <image href="${icons.sunrise}" x="0" y="0" width="${iconSize}" height="${iconSize}" />
-      <text x="${iconSize / 2}" y="${iconSize + fontSize + 2}" font-family="monospace" font-size="${fontSize}" fill="#111111" text-anchor="middle" font-weight="700">${sunData.sunrise}</text>
+      <text x="${iconSize + 6}" y="24" font-family="monospace" font-size="${fontSize}" fill="#111111" text-anchor="start" font-weight="700">${sunData.nauticalTwilightBegin}</text>
     </g>
     
     <!-- Moving dot indicator (current time position) on the oblong track -->
-    <circle cx="${dotX}" cy="${dotY}" r="12" fill="#111111" stroke="#f2f2f2" stroke-width="4"/>
+    <circle cx="${dotX}" cy="${dotY}" r="8" fill="#111111" stroke="#f2f2f2" stroke-width="2"/>
   `
 }
 
@@ -563,9 +569,9 @@ export async function renderTimePng () {
     sun: 'https://api.iconify.design/ph:sun-bold.svg',
     sunset: 'https://api.iconify.design/ph:sun-horizon-bold.svg',
     moon: 'https://api.iconify.design/ph:moon-bold.svg',
-    sunrise: 'https://api.iconify.design/ph:sun-dim-bold.svg'
+    sunrise: 'https://api.iconify.design/ph:sun-horizon-bold.svg',
   }
-  const sunCycleIcons = { sun: '', sunset: '', moon: '', sunrise: '' }
+  const sunCycleIcons = { sun: '', sunset: '', moon: '', sunrise: '', nauticalTwilight: '' }
   await Promise.all(Object.entries(sunCycleIconUrls).map(async ([key, url]) => {
     try {
       const controller = new AbortController()
