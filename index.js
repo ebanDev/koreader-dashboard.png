@@ -124,35 +124,66 @@ const generateSunriseSunsetSvg = (width, height, sunData, currentTime, icons, ra
     progress = duration > 0 ? 0.75 + (elapsed / duration) * 0.25 : 0.75
   }
   
-  // Calculate dot position on the rounded rectangle perimeter
+  // Define the oblong track path (inset from the card edges)
+  const trackInset = 50 // Distance from card edge to the track
+  const trackRadius = 12 // Corner radius of the track
+  const trackLeft = trackInset
+  const trackTop = trackInset
+  const trackRight = width - trackInset
+  const trackBottom = height - trackInset
+  const trackWidth = trackRight - trackLeft
+  const trackHeight = trackBottom - trackTop
+  
+  // Calculate dot position on the rounded rectangle track
   // 0.0 = bottom-left corner (sunrise)
   // 0.25 = top-left corner (noon)
   // 0.5 = top-right corner (sunset)
   // 0.75 = bottom-right corner (midnight)
   
   let dotX, dotY
-  const margin = 6 // Keep dot slightly inside the border
   
-  if (progress < 0.25) {
-    // Left edge going up (sunrise to noon)
-    const edgeProgress = progress / 0.25
-    dotX = margin
-    dotY = height - margin - edgeProgress * (height - 2 * margin)
-  } else if (progress < 0.5) {
-    // Top edge going right (noon to sunset)
-    const edgeProgress = (progress - 0.25) / 0.25
-    dotX = margin + edgeProgress * (width - 2 * margin)
-    dotY = margin
-  } else if (progress < 0.75) {
-    // Right edge going down (sunset to midnight)
-    const edgeProgress = (progress - 0.5) / 0.25
-    dotX = width - margin
-    dotY = margin + edgeProgress * (height - 2 * margin)
-  } else {
-    // Bottom edge going left (midnight to sunrise)
-    const edgeProgress = (progress - 0.75) / 0.25
-    dotX = width - margin - edgeProgress * (width - 2 * margin)
-    dotY = height - margin
+  // Calculate perimeter segments
+  const straightH = trackWidth - 2 * trackRadius // horizontal straight sections
+  const straightV = trackHeight - 2 * trackRadius // vertical straight sections
+  const cornerArc = (Math.PI * trackRadius) / 2 // quarter circle arc length
+  const totalPerimeter = 2 * straightH + 2 * straightV + 4 * cornerArc
+  
+  // Map progress to distance along perimeter, starting from bottom-left
+  const distance = progress * totalPerimeter
+  
+  // Define segment lengths in order: bottom-left corner, left edge, top-left corner, top edge, top-right corner, right edge, bottom-right corner, bottom edge
+  const segments = [
+    { type: 'corner', length: cornerArc, cx: trackLeft + trackRadius, cy: trackBottom - trackRadius, startAngle: Math.PI / 2, dir: 1 }, // bottom-left going up
+    { type: 'line', length: straightV, x1: trackLeft, y1: trackBottom - trackRadius, x2: trackLeft, y2: trackTop + trackRadius }, // left edge
+    { type: 'corner', length: cornerArc, cx: trackLeft + trackRadius, cy: trackTop + trackRadius, startAngle: Math.PI, dir: 1 }, // top-left
+    { type: 'line', length: straightH, x1: trackLeft + trackRadius, y1: trackTop, x2: trackRight - trackRadius, y2: trackTop }, // top edge
+    { type: 'corner', length: cornerArc, cx: trackRight - trackRadius, cy: trackTop + trackRadius, startAngle: -Math.PI / 2, dir: 1 }, // top-right
+    { type: 'line', length: straightV, x1: trackRight, y1: trackTop + trackRadius, x2: trackRight, y2: trackBottom - trackRadius }, // right edge
+    { type: 'corner', length: cornerArc, cx: trackRight - trackRadius, cy: trackBottom - trackRadius, startAngle: 0, dir: 1 }, // bottom-right
+    { type: 'line', length: straightH, x1: trackRight - trackRadius, y1: trackBottom, x2: trackLeft + trackRadius, y2: trackBottom } // bottom edge
+  ]
+  
+  let accumulated = 0
+  for (const seg of segments) {
+    if (accumulated + seg.length >= distance) {
+      const segProgress = (distance - accumulated) / seg.length
+      if (seg.type === 'corner') {
+        const angle = seg.startAngle + segProgress * (Math.PI / 2) * seg.dir
+        dotX = seg.cx + trackRadius * Math.cos(angle)
+        dotY = seg.cy + trackRadius * Math.sin(angle)
+      } else {
+        dotX = seg.x1 + segProgress * (seg.x2 - seg.x1)
+        dotY = seg.y1 + segProgress * (seg.y2 - seg.y1)
+      }
+      break
+    }
+    accumulated += seg.length
+  }
+  
+  // Fallback if calculation fails - use bottom-left corner start position on the track
+  if (dotX === undefined) {
+    dotX = trackLeft + trackRadius
+    dotY = trackBottom
   }
   
   // Corner positions for icons and times
@@ -164,6 +195,17 @@ const generateSunriseSunsetSvg = (width, height, sunData, currentTime, icons, ra
   const bottomRightY = height - padding - iconSize - fontSize - 2
   const bottomLeftX = padding
   const bottomLeftY = height - padding - iconSize - fontSize - 2
+  
+  // Create the oblong track path
+  const trackPath = `M ${trackLeft + trackRadius} ${trackBottom}
+    A ${trackRadius} ${trackRadius} 0 0 1 ${trackLeft} ${trackBottom - trackRadius}
+    L ${trackLeft} ${trackTop + trackRadius}
+    A ${trackRadius} ${trackRadius} 0 0 1 ${trackLeft + trackRadius} ${trackTop}
+    L ${trackRight - trackRadius} ${trackTop}
+    A ${trackRadius} ${trackRadius} 0 0 1 ${trackRight} ${trackTop + trackRadius}
+    L ${trackRight} ${trackBottom - trackRadius}
+    A ${trackRadius} ${trackRadius} 0 0 1 ${trackRight - trackRadius} ${trackBottom}
+    Z`
   
   return `
     <defs>
@@ -178,6 +220,9 @@ const generateSunriseSunsetSvg = (width, height, sunData, currentTime, icons, ra
     
     <!-- Background with gradient -->
     <rect x="0" y="0" width="${width}" height="${height}" rx="${radius}" ry="${radius}" fill="url(#sunGradient)" stroke="#94a3b8" stroke-width="1.5"/>
+    
+    <!-- Oblong track path for the dot to travel on -->
+    <path d="${trackPath}" fill="none" stroke="#ffffff" stroke-width="2" stroke-opacity="0.5"/>
     
     <!-- Top Left: Sun (noon/daytime) -->
     <g transform="translate(${topLeftX}, ${topLeftY})">
@@ -203,8 +248,8 @@ const generateSunriseSunsetSvg = (width, height, sunData, currentTime, icons, ra
       <text x="${iconSize / 2}" y="${iconSize + fontSize + 2}" font-family="monospace" font-size="${fontSize}" fill="#374151" text-anchor="middle" font-weight="700">${sunData.sunrise}</text>
     </g>
     
-    <!-- Moving dot indicator (current time position) -->
-    <circle cx="${dotX}" cy="${dotY}" r="7" fill="#dc2626" stroke="#ffffff" stroke-width="2.5"/>
+    <!-- Moving dot indicator (current time position) on the oblong track -->
+    <circle cx="${dotX}" cy="${dotY}" r="6" fill="#dc2626" stroke="#ffffff" stroke-width="2"/>
   `
 }
 
